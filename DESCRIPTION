@@ -1,4 +1,4 @@
-Package: semicor
+Package: MAPA
 Type: Package
 Title: Correlation Estimation for Maximum Achievable Predictive Accuracy (MAPA)
 Version: 0.1.0
@@ -13,9 +13,6 @@ LazyData: true
 Collate:
   'internal_functions.R'
   'cor_functions.R'
-<<<<<<< HEAD
   'auc_functions.R'
 RoxygenNote: 7.3.2
-=======
-RoxygenNote: 7.3.3
->>>>>>> 999ece2ea64cf776480f710ebf613921cd93d1db
+
