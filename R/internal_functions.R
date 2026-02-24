@@ -156,3 +156,65 @@ if_logit_sq = function(muhat, y){
 if_fisher = function(muhat, y){
   return((1 / (1 - cor(muhat, y)^2)) * if_full(muhat, y))
 }
+
+
+### AUC Functions ###
+#' @noRd
+if_auc_direct <- function(muhat, y, pi_hat, F0, F1, f0, f1, ...){
+  auc_plugin <- auc(roc(y, muhat, ...))
+  if_direct <- (y == 1)*(F0(muhat) - auc_plugin)/pi_hat +
+    (y == 0)*(1 - F1(muhat) - auc_plugin)/(1 - pi_hat)
+  return(if_direct)
+}
+
+# Additional contribution from perturbing mu, arguments similar to above
+#' @noRd
+if_auc_mu <- function(muhat, y, f0, f1){
+  if_mu <- (y - muhat) * (f1(muhat) - f0(muhat))
+  return(if_mu)
+}
+
+# Simple AUC os function that computes fold-specific os
+#' @noRd
+auc_os_fold <- function(muhat, y, pi_hat, F0, F1, f0, f1, ...){
+  # calculate AUC plug-in
+  auc_plugin <- auc(roc(y, muhat, ...))
+  # calculate direct IF values
+  if_direct <- if_auc_direct(muhat, y, pi_hat, F0, F1, f0, f1, ...)
+  # calculate additional IF
+  if_mu <- if_auc_mu(muhat, y, f0, f1)
+
+  # OS = plug-in + mean(if_direct + if_mu)
+  os <- auc_plugin + mean(if_direct + if_mu)
+  return(os)
+}
+
+# Function to compute difference between two one-step estimators (os2 - os1) (with confidence interval)
+# os2: one-step estimate to subtract from
+# os1: one-step estimate to subtract
+# influence2: vector of influence functions for parameter 2 (corresponding to os2) for entire sample
+# influence1: vector of influence functions for parameter 1 (corresponding to os1) for entire sample
+# cl: confidence level
+#' @noRd
+auc_os_diff = function(os2, os1, influence2, influence1, cl = 0.95){
+  if(length(influence1) != length(influence2)){
+    stop("Influence function estimates must come from the same sample")
+  }
+  n = length(influence1)
+
+  # point estimate: difference
+  point_est = os2 - os1
+
+  # variance: v(os1) + v(os2) - 2*cov(os1, os2)
+  # computed as sum of the empirical variances of the influence functions minus 2 times the empirical covariance of the influence function estimates
+  v1 = var(influence1)
+  v2 = var(influence2)
+  cov12 = cov(influence1, influence2)
+
+  v_diff = v1 + v2 - 2*cov12
+
+  lower = point_est - qnorm((1+cl)/2)*sqrt(v_diff/n)
+  upper = point_est + qnorm((1+cl)/2)*sqrt(v_diff/n)
+
+  return(c("estimate" = point_est, "lCI" = lower, "uCI" = upper, "se" = sqrt(v_diff/n)))
+}

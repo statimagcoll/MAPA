@@ -13,4 +13,5 @@ LazyData: true
 Collate:
   'internal_functions.R'
   'cor_functions.R'
+  'auc_functions.R'
 RoxygenNote: 7.3.2
