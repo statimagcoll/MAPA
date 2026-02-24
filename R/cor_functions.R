@@ -1,13 +1,11 @@
-#' Compute the correlation score and its confidence interval from the one-step estimator
-#'
-#' This function computes the one-step estimator from Jones et al. (2025).
-#' Vector arguments are accepted.
-#' @param y A vector of continuous values representing the real outcome values by fold.
-#' @param y_hat A vector of continuous values representing the predicted outcome values by fold.
-#' @param folds A vector representing the cross-fit fold number of the corresponding y_hat and y value.
-#' @param y_hat2 A vector of continuous values representing the predicted outcome values by fold from a different model.
+#' This function computes the one-step estimator from Jones, Gadiyar, and Vandekar (2025).
+#' Vector arguments are accepted. If different length arguments are passed they are dealt with in the usual way of R.
+#' @param y A numeric vector of continuous values representing the real outcome values.
+#' @param y_hat A numeric vector of continuous values representing the predicted outcome values.
+#' @param folds A numeric vector representing the fold number of the corresponding y_hat and y value.
+#' @param y_hat2 A numeric vector of continuous values representing the predicted outcome values from a different model.
 #' @param level A number between 0 and 1 representing the confidence level.
-#' @return Returns a list with a data frame of the one-step estimator and its bounds, a vector of the one-step estimate by fold, the sample number, and the confidence level. If y_hat2 is passed as an argument, the one-step estimate for y_hat2 and difference between the one-step estimate for y_hat1 and y_hat2 will be provided.
+#' @return Returns a list with a data frame of the one-step estimator, the logit-scale one-step estimator value, and its lower bound, upper bound, and standard error; a vector of the one-step estimate values by fold for the first model; the sample number; and the confidence level. If y_hat2 is passed as an argument, the one-step estimate for y_hat2 and its difference/ratio to the one-step estimate for y_hat1 are included with confidence intervals.
 #'
 #' @details The formula for calculating the one-step estimator is:
 #' \eqn{\hat{\rho}_{OS} = \sqrt{\text{expit}\!\left(\text{logit}\!\left({\hat{\rho}_P}^2\right)\right)+\frac{1}{n}\sum_{i=1}^{n}\left\{\frac{(Y_i -\bar{Y})^2}{\hat{\text{Var}}(\hat{\mu)}}-\frac{(Y_i - \hat{\mu}(X_{i}))^2 \, \hat{\text{Var}}(Y)}{(\hat{\text{Var}}(Y) - \hat{\text{Var}}(\hat{\mu}(X))) \,\hat{\text{Var}}(\hat{\mu}(X))}\right\}}}
@@ -17,8 +15,9 @@
 #' \eqn{\sqrt{\text{expit}\!\left(\text{logit}\!\left({\hat{\rho}_{OS}}^2\right)\right)\pm z_{1 - {\alpha/2}}\sqrt{\hat{\text{Var}}\!\left\{\frac{(Y - \bar{Y})^2}{\hat{\text{Var}}(\hat{\mu})}-\frac{(Y - \hat{\mu}(X))^2 \, \hat{\text{Var}}(Y)}{(\hat{\text{Var}}(Y) - \hat{\text{Var}}(\hat{\mu}(X))) \,\hat{\text{Var}}(\hat{\mu}(X))}\right\}/ n}}}
 #'
 #' @export
-foldOS <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
-  # Sanity Check
+
+mapaFolds <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
+  # Checking that variable lengths match
   if(length(y_hat) != length(y) | length(y_hat) != length(folds) | length(y) != length(folds)){
     stop("y, y_hat, and folds must be of the same length.")
   }
@@ -29,32 +28,38 @@ foldOS <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
   n = length(y)
 
   # Looping through folds
-  for(fold in unique(folds)){
+  for(fold in sort(unique(folds))){
     # Calculating and storing OS estimator
     os_res = cor_os(y_hat[which(folds == fold)], y[which(folds == fold)])
     os_folds = c(os_folds, os_res)
 
-    # Calculating the influence vector and storing
+    # Calculating and storing the influence vector
     inf_res = if_logit_sq(y_hat[which(folds == fold)], y[which(folds == fold)])
     inf_folds = c(inf_folds, inf_res)
   }
 
-  # Calculating overall OS estimate
+  # Calculating the mean OS estimate across folds
   os_estimate = mean(os_folds, na.rm = T)
 
-  # Calculating the bounds
-  LB_est = sqrt(expit(logit(os_estimate^2) - qnorm((1 + level) / 2)*sqrt(var(inf_folds)/n)))
-  UB_est = sqrt(expit(logit(os_estimate^2) - qnorm((1 - level) / 2)*sqrt(var(inf_folds)/n)))
+  # Calculating the logit-scale estimate across folds
+  os_estimate_logit = logit(os_estimate^2)
 
-  # Formatting fold estimates for output
-  names(os_folds) <- unique(folds)
+  # Calculating the standard error of the OS estimate
+  stand_error = sqrt(var(inf_folds)/n)
 
-  # Creating data frame output
-  estimate = data.frame(est = os_estimate, LB = LB_est, UB = UB_est)
+  # Calculating the bounds of the OS estimate
+  LB_est = sqrt(expit(os_estimate_logit - qnorm((1 + level) / 2)*stand_error))
+  UB_est = sqrt(expit(os_estimate_logit - qnorm((1 - level) / 2)*stand_error))
+
+  # Denoting the fold number that each OS fold estimate belongs to
+  names(os_folds) <- sort(unique(folds))
+
+  # Creating a results data frame for output
+  estimate = data.frame(est = os_estimate, est_logit = os_estimate_logit, LB = LB_est, UB = UB_est, se = stand_error)
 
 
   if(!is.null(y_hat2)){
-    # Sanity Check
+    # Checking that variable lengths match
     if(length(y_hat2) != length(y) | length(y_hat2) != length(folds) | length(y) != length(folds)){
       stop("y, y_hat2, and folds must be of the same length.")
     }
@@ -65,7 +70,7 @@ foldOS <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
     n = length(y)
 
     # Looping through folds
-    for(fold in unique(folds)){
+    for(fold in sort(unique(folds))){
       # Calculating and storing OS estimator
       os_res = cor_os(y_hat2[which(folds == fold)], y[which(folds == fold)])
       os_folds2 = c(os_folds2, os_res)
@@ -75,30 +80,32 @@ foldOS <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
       inf_folds2 = c(inf_folds2, inf_res)
     }
 
-    # Calculating overall OS estimate
+    # Calculating the mean OS estimate across folds
     os_estimate2 = mean(os_folds2, na.rm = T)
 
-    # Calculating the bounds
-    LB_est2 = sqrt(expit(logit(os_estimate2^2) - qnorm((1 + level) / 2)*sqrt(var(inf_folds2)/n)))
-    UB_est2 = sqrt(expit(logit(os_estimate2^2) - qnorm((1 - level) / 2)*sqrt(var(inf_folds2)/n)))
+    # Calculating the logit-scale estimate across folds
+    os_estimate2_logit = logit(os_estimate2^2)
 
-    # Formatting fold estimates for output
-    names(os_folds2) <- unique(folds)
+    # Calculating standard error
+    stand_error2 = sqrt(var(inf_folds2)/n)
+
+    # Calculating the OS estimate bounds across folds
+    LB_est2 = sqrt(expit(os_estimate2_logit - qnorm((1 + level) / 2)* stand_error2))
+    UB_est2 = sqrt(expit(os_estimate2_logit - qnorm((1 - level) / 2)*stand_error2))
+
+    # Denoting the fold number that each OS fold estimate belongs to
+    names(os_folds2) <- sort(unique(folds))
 
     # Creating data frame output
-    estimate2 = data.frame(est = os_estimate2, LB = LB_est2, UB = UB_est2)
+    estimate2 = data.frame(est = os_estimate2, est_logit = os_estimate2_logit, LB = LB_est2, UB = UB_est2, se = stand_error2)
 
     # Calculating OS difference - first yhat vs. second yhat
     diff = cor_os_diff(os_estimate, os_estimate2, inf_folds, inf_folds2)
-    # MJ: added truncation of CI bounds
-    # Truncate the lower and upper CI at -1 and 1
-    diff[2] <- max(min(diff[2], 1), -1)  # lower CI
-    diff[3] <- max(min(diff[3], 1), -1)  # upper CI
-    os_diff = data.frame(est = diff[1], LB = diff[2], UB = diff[3])
+    os_diff = data.frame(est = diff[1], est_logit = NA, LB = diff[2], UB = diff[3], se = diff[4])
 
     # Calculating the OS ratio - first yhat vs. second yhat
     ratio = cor_os_ratio(os_estimate, os_estimate2, inf_folds, inf_folds2)
-    os_ratio = data.frame(est = ratio[1], LB = ratio[2], UB = ratio[3])
+    os_ratio = data.frame(est = ratio[1], est_logit = NA, LB = ratio[2], UB = ratio[3], se = ratio[4])
 
     # Combining all data into one
     est_total = rbind(estimate, estimate2, os_diff, os_ratio)
@@ -113,7 +120,10 @@ foldOS <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
   }
   else{
     # Combining all outputs into one list when there is no yhat2
-    out = list(est = estimate, fold.est = os_folds, n = n, conf.level = level) # data frame version
+    out = list(est = estimate, fold.est = os_folds, n = n, conf.level = level)
+
+    # Naming the metric being measured in estimate
+    out$est$metric = "yhat1"
   }
 
   # Returning the data frame

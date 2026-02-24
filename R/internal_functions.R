@@ -2,6 +2,7 @@
 # muhat: predicted y values
 # y: actual y
 # transform: estimator transformation (squared logit ("q") by default). Options: "none", "no" for no transform; "l" or "logit" for logit; "q" or "squared logit" for squared logit, "z", "f" or "fisher" for Fisher
+#' @importFrom stats cor
 #' @noRd
 cor_os = function(muhat, y, transform = c("q")){
   p = cor(muhat, y)
