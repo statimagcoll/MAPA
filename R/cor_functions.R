@@ -1,5 +1,6 @@
 #' This function computes the one-step estimator from Jones, Gadiyar, and Vandekar (2025).
 #' Vector arguments are accepted. If different length arguments are passed they are dealt with in the usual way of R.
+#' @import stats
 #' @param y A numeric vector of continuous values representing the real outcome values.
 #' @param y_hat A numeric vector of continuous values representing the predicted outcome values.
 #' @param folds A numeric vector representing the fold number of the corresponding y_hat and y value.
@@ -131,27 +132,20 @@ mapaFolds <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
 }
 
 
-#' Perform multiple sample splits for one-step correlation estimator
-#'
-#' This function computes the one-step estimator from Jones et al. (2025). Multiple sample splits are recommended for
-#' replicability and reproducibility. The final estimate and CI bounds can be taken as the median of the results from this function.
-#'
-#' @param y A vector of continuous values representing the real outcome values by fold.
-#' @param y_hat A matrix of continuous values representing the predicted outcome values by fold. Each column corresponds to a different sample split.
-#' @param folds A matrix representing the fold number of the corresponding y_hat and y value. Each column corresponds to a different sample split.
-#' @param y_hat2 A matrix of continuous values representing the predicted outcome values by fold from a different model. Each column corresponds to a different sample split.
+## -------------------------------------------------------------------------------------------------------------------------------------
+#' This function computes the one-step estimator from Jones, Gadiyar, and Vandekar (2025) when sample splits are used.
+#' Vector arguments are accepted. If different length arguments are passed they are dealt with in the usual way of R.
+#' @import stats
+#' @param y A numeric vector of continuous values representing the real outcome values.
+#' @param y_hat A numeric matrix of continuous values representing the predicted outcome values by subject (row) with each column representing a different sample split.
+#' @param folds A numeric matrix representing the fold number of the corresponding y_hat and y value (row) with each column representing a different sample split.
+#' @param y_hat2 A numeric matrix of continuous values representing the predicted outcome values by subject (row) from a different model with each column representing a different sample split.
 #' @param level A number between 0 and 1 representing the confidence level.
-#' @return Returns a list with a data frame of the one-step estimator and its bounds per split, a matrix of the one-step estimate by fold and split, the sample number, and the confidence level. If y_hat2 is passed as an argument, the one-step estimate for y_hat2 and difference between the one-step estimate for y_hat1 and y_hat2 will be provided.
-#'
-#' @details The formula for calculating the one-step estimator is:
-#' \eqn{\hat{\rho}_{OS} = \sqrt{\text{expit}\!\left(\text{logit}\!\left({\hat{\rho}_P}^2\right)\right)+\frac{1}{n}\sum_{i=1}^{n}\left\{\frac{(Y_i -\bar{Y})^2}{\hat{\text{Var}}(\hat{\mu)}}-\frac{(Y_i - \hat{\mu}(X_{i}))^2 \, \hat{\text{Var}}(Y)}{(\hat{\text{Var}}(Y) - \hat{\text{Var}}(\hat{\mu}(X))) \,\hat{\text{Var}}(\hat{\mu}(X))}\right\}}}
-#'
-#' @details The formula for calculating the one-step estimator confidence interval is:
-#'
-#' \eqn{\sqrt{\text{expit}\!\left(\text{logit}\!\left({\hat{\rho}_{OS}}^2\right)\right)\pm z_{1 - {\alpha/2}}\sqrt{\hat{\text{Var}}\!\left\{\frac{(Y - \bar{Y})^2}{\hat{\text{Var}}(\hat{\mu})}-\frac{(Y - \hat{\mu}(X))^2 \, \hat{\text{Var}}(Y)}{(\hat{\text{Var}}(Y) - \hat{\text{Var}}(\hat{\mu}(X))) \,\hat{\text{Var}}(\hat{\mu}(X))}\right\}/ n}}}
+#' @return Returns a list with a data frame of the one-step estimator, the logit-scale one-step estimator value, and its lower bound, upper bound, and standard error; a vector of the one-step estimate values by fold for the first model; the sample number; and the confidence level. If y_hat2 is passed as an argument, the one-step estimate for y_hat2 and its difference/ratio to the one-step estimate for y_hat1 are included with confidence intervals.
 #'
 #' @export
-sampleSplitOS <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
+
+mapa <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
   # Turning y into a matrix
   y = as.matrix(y)
 
@@ -189,45 +183,56 @@ sampleSplitOS <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
   }
 
 
-  # number of sample splits
+  # Assigning the number of sample splits
   n_splits <- ncol(y_hat)
 
-  # SINGLE lapply over splits
+
+  # Gathering results
   res_list <- lapply(seq_len(n_splits), function(i) {
-    # choose appropriate y_hat2 column (or NULL)
-    this_yhat2 <- if (is.null(y_hat2)) NULL else y_hat2[, i]
-
-    # run foldOS once
-    tmp <- foldOS(y, y_hat[, i], folds[, i], this_yhat2, level)
-
-    # add split id to est
+    tmp <- mapaFolds(y, y_hat[, i], folds[, i], y_hat2[,i], level)
     tmp$est$split <- i
 
-    # return everything we might need
-    list(est   = tmp$est, fold1 = tmp$fold.est, fold2 = if (!is.null(y_hat2)) tmp$fold.est2 else NULL)
+    list(
+      est   = tmp$est,
+      fold1 = tmp$fold.est,
+      fold2 = if (is.null(y_hat2)) NULL else tmp$fold.est2
+    )
   })
 
-  # helper to extract and rbind a component if it exists
-  bind_component <- function(lst, name) {
-    comp <- lapply(lst, `[[`, name)
-    # filter out NULLs (e.g., fold2 when y_hat2 is NULL)
-    comp <- comp[!vapply(comp, is.null, logical(1))]
-    if (length(comp) == 0L) return(NULL)
-    do.call(rbind, comp)
+  # Combining all results
+  out <- list(
+    est        = do.call(rbind, lapply(res_list, `[[`, "est")),
+    est1.folds = do.call(rbind, lapply(res_list, `[[`, "fold1")),
+    n          = length(y),
+    conf.level = level
+  )
+
+  # Naming rows in est1.folds output to signal sample split number
+  rownames(out$est1.folds) <- paste0("ss", seq_len(nrow(out$est1.folds)))
+
+  if (!is.null(y_hat2)) {
+    # Adding est2.folds when yhat2 is present
+    out$est2.folds <- do.call(rbind, lapply(res_list, `[[`, "fold2"))
+
+    # Naming rows in est2.folds output to signal sample split number
+    rownames(out$est2.folds) <- paste0("ss", seq_len(nrow(out$est2.folds)))
   }
 
-  # Row-binding the respective list components and assigning them to variables
-  est <- bind_component(res_list, "est")
-  folds_one <- bind_component(res_list, "fold1")
-  folds_two <- bind_component(res_list, "fold2")
+  # Adding a summary data frame element in case there is more than one sample split
+  out$est_summary = out$est %>%
+    group_by(metric) %>%
+    summarise(
+      est = median(est, na.rm = TRUE),
+      est_logit = median(est_logit, na.rm = TRUE),
+      LB = median(LB, na.rm = TRUE),
+      UB = median(UB, na.rm = TRUE),
+      se = median(se, na.rm = TRUE)
+    )
 
-  # build output
-  out <- list(result = est, fold1.vals  = folds_one,n = length(y), conf.level  = level)
+  # Storing est_summary as a data frame instead of a tibble
+  out$est_summary = data.frame(out$est_summary)
 
-  # Changing output based on if yhat2 is passed
-  if (!is.null(folds_two)) {
-    out$fold2.vals <- folds_two
-  }
-
+  # Returning output
   return(out)
 }
+

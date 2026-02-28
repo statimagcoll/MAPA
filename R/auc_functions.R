@@ -1,8 +1,17 @@
 # These functions are essentially mapaFolds and mapa but adapted to binary phenotypes.
 # Can work on combining into cohesive functions that handle continuous or binary
 
+
+#' Vector arguments are accepted. If different length arguments are passed they are dealt with in the usual way of R.
+#' @import stats
+#' @param y A numeric vector of binary values representing the real outcome values.
+#' @param y_hat A numeric vector of binary values representing the predicted outcome values.
+#' @param folds A numeric vector representing the fold number of the corresponding y_hat and y value.
+#' @param y_hat2 A numeric vector of binary values representing the predicted outcome values from a different model.
+#' @param level A number between 0 and 1 representing the confidence level.
+#' @return Returns a list with a data frame of the one-step estimate for AUC, its lower bound, upper bound, and standard error; a vector of the one-step estimate values by fold for the first model; the sample number; and the confidence level. If y_hat2 is passed as an argument, the one-step estimate for y_hat2 and its difference/ratio to the one-step estimate for y_hat1 are included with confidence intervals.
 #' @export
-mapaFolds_auc <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95, ...){
+mapaFolds_auc <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
   #browser()
   # Checking that variable lengths match
   if(length(y_hat) != length(y) | length(y_hat) != length(folds) | length(y) != length(folds)){
@@ -136,8 +145,18 @@ mapaFolds_auc <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95, ...){
   return(out)
 }
 
+
+#' Vector arguments are accepted. If different length arguments are passed they are dealt with in the usual way of R.
+#' @import stats
+#' @param y A numeric vector of binary values representing the real outcome values.
+#' @param y_hat A numeric matrix of binary values representing the predicted outcome values by subject (row) with each column representing a different sample split.
+#' @param folds A numeric matrix representing the fold number of the corresponding y_hat and y value (row) with each column representing a different sample split.
+#' @param y_hat2 A numeric matrix of binary values representing the predicted outcome values by subject (row) from a different model with each column representing a different sample split.
+#' @param level A number between 0 and 1 representing the confidence level.
+#' @return Returns a list with a data frame of the one-step estimator for AUC, its lower bound, upper bound, and standard error; a vector of the one-step estimate values by fold for the first model; the sample number; and the confidence level. If y_hat2 is passed as an argument, the one-step estimate for y_hat2 and its difference/ratio to the one-step estimate for y_hat1 are included with confidence intervals.
+#'
 #' @export
-mapa_auc <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95, ...){
+mapa_auc <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
   #browser()
   # Turning y into a matrix
   y = as.matrix(y)
