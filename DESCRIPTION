@@ -14,5 +14,6 @@ Collate:
   'internal_functions.R'
   'cor_functions.R'
   'auc_functions.R'
+  'MAPA_Functions.R'
 RoxygenNote: 7.3.2
 
