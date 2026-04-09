@@ -1,6 +1,5 @@
 #' This function computes the one-step estimator from Jones, Gadiyar, and Vandekar (2025).
 #' Vector arguments are accepted. If different length arguments are passed they are dealt with in the usual way of R.
-#' @import stats
 #' @param y A numeric vector of continuous values representing the real outcome values.
 #' @param y_hat A numeric vector of continuous values representing the predicted outcome values.
 #' @param folds A numeric vector representing the fold number of the corresponding y_hat and y value.
@@ -48,15 +47,11 @@ mapaFolds <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
   # Calculating the standard error of the OS estimate
   stand_error = sqrt(var(inf_folds)/n)
 
-  # Calculating the bounds of the OS estimate
-  LB_est = sqrt(expit(os_estimate_logit - qnorm((1 + level) / 2)*stand_error))
-  UB_est = sqrt(expit(os_estimate_logit - qnorm((1 - level) / 2)*stand_error))
-
   # Denoting the fold number that each OS fold estimate belongs to
   names(os_folds) <- sort(unique(folds))
 
   # Creating a results data frame for output
-  estimate = data.frame(est = os_estimate, est_logit = os_estimate_logit, LB = LB_est, UB = UB_est, se = stand_error)
+  estimate = data.frame(est = os_estimate, est_logit = os_estimate_logit, se_logit = stand_error)
 
 
   if(!is.null(y_hat2)){
@@ -90,23 +85,19 @@ mapaFolds <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
     # Calculating standard error
     stand_error2 = sqrt(var(inf_folds2)/n)
 
-    # Calculating the OS estimate bounds across folds
-    LB_est2 = sqrt(expit(os_estimate2_logit - qnorm((1 + level) / 2)* stand_error2))
-    UB_est2 = sqrt(expit(os_estimate2_logit - qnorm((1 - level) / 2)*stand_error2))
-
     # Denoting the fold number that each OS fold estimate belongs to
     names(os_folds2) <- sort(unique(folds))
 
     # Creating data frame output
-    estimate2 = data.frame(est = os_estimate2, est_logit = os_estimate2_logit, LB = LB_est2, UB = UB_est2, se = stand_error2)
+    estimate2 = data.frame(est = os_estimate2, est_logit = os_estimate2_logit, se_logit = stand_error2)
 
     # Calculating OS difference - first yhat vs. second yhat
     diff = cor_os_diff(os_estimate, os_estimate2, inf_folds, inf_folds2)
-    os_diff = data.frame(est = diff[1], est_logit = NA, LB = diff[2], UB = diff[3], se = diff[4])
+    os_diff = data.frame(est = diff[1], est_logit = NA, se_logit = diff[4])
 
     # Calculating the OS ratio - first yhat vs. second yhat
     ratio = cor_os_ratio(os_estimate, os_estimate2, inf_folds, inf_folds2)
-    os_ratio = data.frame(est = ratio[1], est_logit = NA, LB = ratio[2], UB = ratio[3], se = ratio[4])
+    os_ratio = data.frame(est = ratio[1], est_logit = NA, se_logit = ratio[4])
 
     # Combining all data into one
     est_total = rbind(estimate, estimate2, os_diff, os_ratio)
@@ -132,10 +123,9 @@ mapaFolds <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
 }
 
 
-## -------------------------------------------------------------------------------------------------------------------------------------
+## -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #' This function computes the one-step estimator from Jones, Gadiyar, and Vandekar (2025) when sample splits are used.
 #' Vector arguments are accepted. If different length arguments are passed they are dealt with in the usual way of R.
-#' @import stats
 #' @param y A numeric vector of continuous values representing the real outcome values.
 #' @param y_hat A numeric matrix of continuous values representing the predicted outcome values by subject (row) with each column representing a different sample split.
 #' @param folds A numeric matrix representing the fold number of the corresponding y_hat and y value (row) with each column representing a different sample split.
@@ -224,10 +214,12 @@ mapa <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
     summarise(
       est = median(est, na.rm = TRUE),
       est_logit = median(est_logit, na.rm = TRUE),
-      LB = median(LB, na.rm = TRUE),
-      UB = median(UB, na.rm = TRUE),
-      se = median(se, na.rm = TRUE)
+      se_logit = median(se_logit, na.rm = TRUE)
     )
+
+  # Calculating confidence interval
+  out$est_summary$LB = sqrt(expit(logit(out$est_summary$est^2) - qnorm((1+level)/2)*out$est_summary$se_logit))
+  out$est_summary$UB = sqrt(expit(logit(out$est_summary$est^2) + qnorm((1+level)/2)*out$est_summary$se_logit))
 
   # Storing est_summary as a data frame instead of a tibble
   out$est_summary = data.frame(out$est_summary)
