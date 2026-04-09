@@ -265,7 +265,7 @@ mapa <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
     summarise(
       est = median(est, na.rm = TRUE),
       est_logit = median(est_logit, na.rm = TRUE),
-      se_logit = median(se, na.rm = TRUE)
+      se_logit = median(se_logit, na.rm = TRUE)
     )
   
   # Calculating confidence interval
