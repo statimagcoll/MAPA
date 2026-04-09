@@ -71,7 +71,9 @@ cor_os_diff = function(os2, os1, influence2, influence1, transform = "q", cl = 0
   lower = point_est - qnorm(cl+(1-cl)/2)*sqrt(v_diff/n)
   upper = point_est + qnorm(cl+(1-cl)/2)*sqrt(v_diff/n)
 
-  return(c("estimate" = point_est, "lCI" = lower, "uCI" = upper))
+  se = sqrt(v_diff/n)
+
+  return(c("estimate" = point_est, "lCI" = lower, "uCI" = upper, "se" = se))
 }
 
 # Function to compute ratio of Cohen's f^2 via two one-step (squared logit) estimators (with confidence interval)
@@ -102,7 +104,9 @@ cor_os_ratio = function(os2, os1, influence2, influence1, cl = 0.95){
   lower = exp(log(point_est) - qnorm(cl+(1-cl)/2)*sqrt(v_diff/n))
   upper = exp(log(point_est) + qnorm(cl+(1-cl)/2)*sqrt(v_diff/n))
 
-  return(c("estimate" = point_est, "lCI" = lower, "uCI" = upper))
+  se = sqrt(v_diff/n)
+
+  return(c("estimate" = point_est, "lCI" = lower, "uCI" = upper, "se" = se))
 }
 
 # logit and expit functions
