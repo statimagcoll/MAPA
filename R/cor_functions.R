@@ -93,11 +93,11 @@ mapaFolds <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
 
     # Calculating OS difference - first yhat vs. second yhat
     diff = cor_os_diff(os_estimate, os_estimate2, inf_folds, inf_folds2)
-    os_diff = data.frame(est = diff[1], est_logit = NA, se_logit = diff["se"])
+    os_diff = data.frame(est = diff["estimate"], est_logit = NA, se_logit = diff["se"])
 
     # Calculating the OS ratio - first yhat vs. second yhat
     ratio = cor_os_ratio(os_estimate, os_estimate2, inf_folds, inf_folds2)
-    os_ratio = data.frame(est = ratio[1], est_logit = NA, se_logit = ratio["se"])
+    os_ratio = data.frame(est = ratio["estimate"], est_logit = NA, se_logit = ratio["se"])
 
     # Combining all data into one
     est_total = rbind(estimate, estimate2, os_diff, os_ratio)
