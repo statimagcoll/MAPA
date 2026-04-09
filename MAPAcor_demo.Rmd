@@ -34,12 +34,6 @@ library(MAPA)
 
 # Setting the seed
 set.seed(123)
-
-# Remove this later
-source("/media/disk2/multivariateBWAS/code_for_review/build_funcs.R")
-# Sourcing influence and correlation functions
-source("/media/disk2/multivariateBWAS/code_for_review/influence_funcs.R")
-source("/media/disk2/multivariateBWAS/code_for_review/corr_funcs.R")
 ```
 
 
@@ -334,6 +328,7 @@ results$est_summary <- results$est_summary %>% mutate(metric = recode(metric, yh
 
 # Previewing summarized results
 results$est_summary
+results$est
 ```
 
 ### Graphing Outputs
