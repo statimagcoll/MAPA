@@ -68,12 +68,9 @@ cor_os_diff = function(os2, os1, influence2, influence1, transform = "q", cl = 0
 
   v_diff = v1*var_factor(os1)^2 + v2*var_factor(os2)^2 - 2*cov12*var_factor(os1)*var_factor(os2)
 
-  lower = point_est - qnorm(cl+(1-cl)/2)*sqrt(v_diff/n)
-  upper = point_est + qnorm(cl+(1-cl)/2)*sqrt(v_diff/n)
-
   se = sqrt(v_diff/n)
 
-  return(c("estimate" = point_est, "lCI" = lower, "uCI" = upper, "se" = se))
+  return(c("estimate" = point_est, "se" = se))
 }
 
 # Function to compute ratio of Cohen's f^2 via two one-step (squared logit) estimators (with confidence interval)
@@ -91,7 +88,7 @@ cor_os_ratio = function(os2, os1, influence2, influence1, cl = 0.95){
   n = length(influence1)
 
   # point estimate: exponeniated log ratio
-  point_est = exp(logit(os2^2)-logit(os1^2))
+  point_est = logit(os2^2)-logit(os1^2)
 
   # variance: v(os1) + v(os2) - 2*cov(os1, os2)
   # computed as sum of the empirical variances of the influence functions minus 2 times the empirical covariance of the influence function estimates
@@ -101,12 +98,9 @@ cor_os_ratio = function(os2, os1, influence2, influence1, cl = 0.95){
 
   v_diff = v1 + v2 - 2*cov12
 
-  lower = exp(log(point_est) - qnorm(cl+(1-cl)/2)*sqrt(v_diff/n))
-  upper = exp(log(point_est) + qnorm(cl+(1-cl)/2)*sqrt(v_diff/n))
-
   se = sqrt(v_diff/n)
 
-  return(c("estimate" = point_est, "lCI" = lower, "uCI" = upper, "se" = se))
+  return(c("estimate" = point_est, "se" = se))
 }
 
 # logit and expit functions

@@ -100,8 +100,7 @@ mapaFolds <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
   names(os_folds) <- sort(unique(folds))
   
   # Creating a results data frame for output 
-  estimate = data.frame(est = os_estimate, est_logit = os_estimate_logit, se_logit = stand_error)
-    
+  estimate = data.frame(metric = "yhat1", scale = "logit(r^2)", est = os_estimate_logit, se = stand_error)
     
   if(!is.null(y_hat2)){
     # Checking that variable lengths match
@@ -138,22 +137,18 @@ mapaFolds <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
     names(os_folds2) <- sort(unique(folds))
     
     # Creating data frame output 
-    estimate2 = data.frame(est = os_estimate2, est_logit = os_estimate2_logit, se_logit = stand_error2)
+    estimate2 = data.frame(metric = "yhat2", scale = "logit(r^2)", est = os_estimate2_logit, se = stand_error2)
     
     # Calculating OS difference - first yhat vs. second yhat
     diff = cor_os_diff(os_estimate, os_estimate2, inf_folds, inf_folds2)
-    os_diff = data.frame(est = diff[1], est_logit = NA, se_logit = diff[4])
-    
+    os_diff = data.frame(metric = "Difference", scale = "r2-r1", est = diff["estimate"], se = diff["se"])
+
     # Calculating the OS ratio - first yhat vs. second yhat
     ratio = cor_os_ratio(os_estimate, os_estimate2, inf_folds, inf_folds2)
-    os_ratio = data.frame(est = ratio[1], est_logit = NA, se_logit = ratio[4])
+    os_ratio = data.frame(metric = "Ratio", scale = "log(f2^2/f1^2)", est = ratio["estimate"], se = ratio["se"])
     
     # Combining all data into one
     est_total = rbind(estimate, estimate2, os_diff, os_ratio)
-    
-    # Assigning row names
-    est_total$metric <- c("yhat1", "yhat2", "Diff", "Ratio")
-    rownames(est_total) <- NULL 
     
     
     # Combining all outputs into one list
@@ -162,9 +157,6 @@ mapaFolds <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
   else{
     # Combining all outputs into one list when there is no yhat2
     out = list(est = estimate, fold.est = os_folds, n = n, conf.level = level) 
-    
-    # Naming the metric being measured in estimate
-    out$est$metric = "yhat1"
   }
   
   # Returning the data frame
@@ -214,7 +206,7 @@ mapa <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
   
   # Sanity checks for second mu
   if(!is.null(y_hat2)){
-      if(ncol(folds) != ncol(y_hat2)){
+    if(ncol(folds) != ncol(y_hat2)){
       stop("folds and y_hat2 must have the same column number")
     }
     
@@ -227,7 +219,7 @@ mapa <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
   # Assigning the number of sample splits
   n_splits <- ncol(y_hat)
   
-
+  
   # Gathering results 
   res_list <- lapply(seq_len(n_splits), function(i) {
     tmp <- mapaFolds(y, y_hat[, i], folds[, i], y_hat2[,i], level)
@@ -264,15 +256,69 @@ mapa <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
     group_by(metric) %>%
     summarise(
       est = median(est, na.rm = TRUE),
-      est_logit = median(est_logit, na.rm = TRUE),
-      se_logit = median(se_logit, na.rm = TRUE)
+      se = median(se, na.rm = TRUE)
     )
   
-  # Calculating confidence interval
-  out$est_summary$LB = sqrt(expit(logit(out$est_summary$est^2) - qnorm((1+level)/2)*out$est_summary$se_logit))
-  out$est_summary$UB = sqrt(expit(logit(out$est_summary$est^2) + qnorm((1+level)/2)*out$est_summary$se_logit))
+  # Adding a place in the summary frame to add bounds
+  out$est_summary$LB = NA
+  out$est_summary$UB = NA
   
-  # Storing est_summary as a data frame instead of a tibble
+  # Calculating for logit estimate
+  out$est_summary = out$est_summary %>%
+    mutate(LB = ifelse(metric == "yhat1" & scale == "logit(r^2)", est - qnorm((1+level)/2)*se, LB),
+           UB = ifelse(metric == "yhat1" & scale == "logit(r^2)", est + qnorm((1+level)/2)*se, UB))
+  
+  # Adding correlation-scale data
+  yhat1_cor = data.frame(
+    metric = "yhat1",
+    scale = "r",
+    est = sqrt(expit(out$est_summary[out$est_summary$metric == "yhat1" &
+                                       out$est_summary$scale == "logit(r^2)", ]$est)),
+    se = NA,
+    LB = sqrt(expit(out$est_summary[out$est_summary$metric == "yhat1" &
+                                      out$est_summary$scale == "logit(r^2)", ]$LB)),
+    UB = sqrt(expit(out$est_summary[out$est_summary$metric == "yhat1" &
+                                      out$est_summary$scale == "logit(r^2)", ]$UB)))
+  
+  # Combining data
+  out$est_summary = rbind(out$est_summary, yhat1_cor)
+  
+  
+  # Modifying summary table if yhat 2 is provided
+  if(!is.null(y_hat2)){
+    # Calculating the LB and UB for Diff, Ratio, and yhat logit/cor values
+    ## Calculating for logit values
+    out$est_summary = out$est_summary %>%
+      mutate(LB = ifelse(metric == "yhat2" & scale == "logit(r^2)", est - qnorm((1+level)/2)*se, LB),
+             UB = ifelse(metric == "yhat2" & scale == "logit(r^2)", est + qnorm((1+level)/2)*se, UB))
+    
+    ## Calculating for difference 
+    out$est_summary = out$est_summary %>%
+      mutate(LB = ifelse(metric == "Difference" & scale == "r2-r1", diff - qnorm((1+level)/2)*se, LB),
+             UB = ifelse(metric == "Difference" & scale == "r2-r1", diff + qnorm((1+level)/2)*se, UB))
+    
+    ## Calculating for ratio
+    out$est_summary = out$est_summary %>%
+      mutate(LB = ifelse(metric == "Ratio" & scale == "log(f2^2/f1^2)", ratio - qnorm((1+level)/2)*se, LB),
+             UB = ifelse(metric == "Ratio" & scale == "log(f2^2/f1^2)", ratio + qnorm((1+level)/2)*se, UB))
+    
+    # Adding correlation-scale data
+    yhat2_cor = data.frame(
+      metric = "yhat2",
+      scale = "r",
+      est = sqrt(expit(out$est_summary[out$est_summary$metric == "yhat2" &
+                                         out$est_summary$scale == "logit(r^2)", ]$est)),
+      se = NA,
+      LB = sqrt(expit(out$est_summary[out$est_summary$metric == "yhat2" &
+                                        out$est_summary$scale == "logit(r^2)", ]$LB)),
+      UB = sqrt(expit(out$est_summary[out$est_summary$metric == "yhat2" &
+                                        out$est_summary$scale == "logit(r^2)", ]$UB)))
+    
+    # Combining all data frames and storing est_summary as a data frame instead of a tibble
+    out$est_summary = rbind(out$est_summary, yhat2_cor)
+  }
+  
+  # Making sure that summary table is a data frame
   out$est_summary = data.frame(out$est_summary)
   
   # Returning output

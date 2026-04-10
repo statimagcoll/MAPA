@@ -176,8 +176,7 @@ results$est_summary <- results$est_summary %>% mutate(metric = recode(metric, yh
 
 # Previewing summarized results
 results$est_summary
-
-results
+results$est
 ```
 
 ### Graphing Outputs
