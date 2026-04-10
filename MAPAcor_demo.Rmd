@@ -28,7 +28,7 @@ library(mlr)
 
 # Installing and loading MAPA package
 if (!"MAPA" %in% rownames(installed.packages())) {
-  devtools::install_github("statimagcoll/MAPA", upgrade = "never")
+  devtools::install_github("statimagcoll/MAPA")
 }
 library(MAPA)
 
