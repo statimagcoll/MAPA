@@ -179,7 +179,6 @@ mapaFolds <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
 #' @export
 
 mapa <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
-  browser()
   # Turning y into a matrix
   y = as.matrix(y)
   

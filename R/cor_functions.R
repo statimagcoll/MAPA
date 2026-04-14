@@ -128,7 +128,6 @@ mapaFolds <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
 #' @export
 
 mapa <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
-  browser()
   # Turning y into a matrix
   y = as.matrix(y)
 
@@ -216,8 +215,8 @@ mapa <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
 
   # Calculating for logit estimate
   out$est_summary = out$est_summary %>%
-    mutate(LB = ifelse(out$est_summary$metric == "yhat1" & out$est_summary$scale == "logit(r^2)", est - qnorm((1+level)/2)*se, LB),
-           UB = ifelse(out$est_summary$metric == "yhat1" & out$est_summary$scale == "logit(r^2)", est + qnorm((1+level)/2)*se, UB))
+    mutate(LB = ifelse(metric == "yhat1" & scale == "logit(r^2)", est - qnorm((1+level)/2)*se, LB),
+           UB = ifelse(metric == "yhat1" & scale == "logit(r^2)", est + qnorm((1+level)/2)*se, UB))
 
   # Adding correlation-scale data
   yhat1_cor = data.frame(
