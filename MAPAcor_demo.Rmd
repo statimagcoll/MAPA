@@ -176,19 +176,19 @@ results$est_summary <- results$est_summary %>% mutate(metric = recode(metric, yh
 
 # Previewing summarized results
 results$est_summary
-results$est
+head(results$est)
 ```
 
 ### Graphing Outputs
 ```{r}
 # Subsetting results to only estimates
-toPlot = results$est_summary %>% filter(metric == "Structural Data" | metric == "Functional Data")
-toPlot_Diff = results$est_summary %>% filter(metric == "Diff")
+toPlot = results$est_summary %>% filter((metric == "Structural Data" | metric == "Functional Data") & scale == "r")
+toPlot_Diff = results$est_summary %>% filter(metric == "Difference")
 
 # Plotting one-step results 
 ggplot(toPlot, aes(x = metric, y = est)) +
   geom_point(position = position_dodge(width = 0.5), size = 3) +
-  geom_errorbar(aes(ymin = est-se, ymax = est+se),
+  geom_errorbar(aes(ymin = LB, ymax = UB),
                 width = 0.2,
                 position = position_dodge(width = 0.5)) +
   theme_bw() + 
@@ -199,7 +199,7 @@ ggplot(toPlot, aes(x = metric, y = est)) +
 # Plotting one-step difference results 
 ggplot(toPlot_Diff, aes(x = metric, y = est)) +
   geom_point(position = position_dodge(width = 0.5), size = 3) +
-  geom_errorbar(aes(ymin = est-se, ymax = est+se),
+  geom_errorbar(aes(ymin = LB, ymax = UB),
                 width = 0.2,
                 position = position_dodge(width = 0.5)) +
   theme_bw() + 
@@ -327,20 +327,20 @@ results$est_summary <- results$est_summary %>% mutate(metric = recode(metric, yh
 
 # Previewing summarized results
 results$est_summary
-results$est
+head(results$est)
 ```
 
 ### Graphing Outputs
 Here, we take the median of the estimate and bound values from each sample split to determine what one-step estimator, lower-bound, and upper-bound value to plot.
 ```{r}
 # Filtering to only the estimates for the structural and functional estimates
-toPlot <- results$est_summary %>% filter(metric == "Structural Data" | metric == "Functional Data")
-toPlot_Diff <- results$est_summary %>% filter(metric == "Diff")
+toPlot <- results$est_summary %>% filter((metric == "Structural Data" | metric == "Functional Data") & scale == "r")
+toPlot_Diff <- results$est_summary %>% filter(metric == "Difference")
 
 # Plotting results
 ggplot(toPlot, aes(x = metric, y = est)) +
   geom_point(position = position_dodge(width = 0.5), size = 3) +
-  geom_errorbar(aes(ymin = est-se, ymax = est+se),
+  geom_errorbar(aes(ymin = LB, ymax = UB),
                 width = 0.2,
                 position = position_dodge(width = 0.5)) +
   theme_bw() + 
@@ -352,7 +352,7 @@ ggplot(toPlot, aes(x = metric, y = est)) +
 # Plotting one-step difference results 
 ggplot(toPlot_Diff, aes(x = metric, y = est)) +
   geom_point(position = position_dodge(width = 0.5), size = 3) +
-  geom_errorbar(aes(ymin = est-se, ymax = est+se),
+  geom_errorbar(aes(ymin = LB, ymax = UB),
                 width = 0.2,
                 position = position_dodge(width = 0.5)) +
   theme_bw() + 
@@ -497,18 +497,19 @@ results$est_summary <- results$est_summary %>% mutate(metric = recode(metric, yh
 
 # Previewing summarized results
 results$est_summary
+head(results$est)
 ```
 
 ### Graphing Outputs
 ```{r}
 # Subsetting results to only estimates
-toPlot = results$est_summary %>% filter(metric == "Structural Data" | metric == "Functional Data")
-toPlot_Diff =  results$est %>% filter(metric == "Diff")
+toPlot = results$est_summary %>% filter((metric == "Structural Data" | metric == "Functional Data") & scale == "r")
+toPlot_Diff =  results$est_summary %>% filter(metric == "Difference")
 
 # Plotting one-step results 
 ggplot(toPlot, aes(x = metric, y = est)) +
   geom_point(position = position_dodge(width = 0.5), size = 3) +
-  geom_errorbar(aes(ymin = est-se, ymax = est+se),
+  geom_errorbar(aes(ymin = LB, ymax = UB),
                 width = 0.2,
                 position = position_dodge(width = 0.5)) +
   theme_bw() + 
@@ -520,7 +521,7 @@ ggplot(toPlot, aes(x = metric, y = est)) +
 # Plotting one-step difference results 
 ggplot(toPlot_Diff, aes(x = metric, y = est)) +
   geom_point(position = position_dodge(width = 0.5), size = 3) +
-  geom_errorbar(aes(ymin = est-se, ymax = est+se),
+  geom_errorbar(aes(ymin = LB, ymax = UB),
                 width = 0.2,
                 position = position_dodge(width = 0.5)) +
   theme_bw() + 
@@ -637,13 +638,14 @@ results$est_summary <- results$est_summary %>% mutate(metric = recode(metric, yh
 
 # Previewing summarized results
 results$est_summary
+head(results$est)
 ```
 
 ### Graphing Outputs
 ```{r}
 # Filtering to only the estimates for the eTIV and nWBV estimates
-toPlot <- results$est_summary %>% filter(metric == "Structural Data" | metric == "Functional Data")
-toPlot_Diff <- results$est_summary %>% filter(metric == "Diff")
+toPlot <- results$est_summary %>% filter((metric == "Structural Data" | metric == "Functional Data") & scale == "r")
+toPlot_Diff <- results$est_summary %>% filter(metric == "Difference")
 
 # Plotting one-step results 
 ggplot(toPlot, aes(x = metric, y = est)) +
