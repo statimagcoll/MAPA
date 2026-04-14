@@ -128,6 +128,7 @@ mapaFolds <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
 #' @export
 
 mapa <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
+  browser()
   # Turning y into a matrix
   y = as.matrix(y)
 
@@ -202,10 +203,11 @@ mapa <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
 
   # Adding a summary data frame element in case there is more than one sample split
   out$est_summary = out$est %>%
-    group_by(metric) %>%
+    group_by(metric, scale) %>%
     summarise(
       est = median(est, na.rm = TRUE),
-      se = median(se, na.rm = TRUE)
+      se = median(se, na.rm = TRUE),
+      .groups = "drop"
     )
 
   # Adding a place in the summary frame to add bounds
@@ -243,13 +245,13 @@ mapa <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
 
     ## Calculating for difference
     out$est_summary = out$est_summary %>%
-      mutate(LB = ifelse(metric == "Difference" & scale == "r2-r1", diff - qnorm((1+level)/2)*se, LB),
-             UB = ifelse(metric == "Difference" & scale == "r2-r1", diff + qnorm((1+level)/2)*se, UB))
+      mutate(LB = ifelse(metric == "Difference" & scale == "r2-r1", est - qnorm((1+level)/2)*se, LB),
+             UB = ifelse(metric == "Difference" & scale == "r2-r1", est + qnorm((1+level)/2)*se, UB))
 
     ## Calculating for ratio
     out$est_summary = out$est_summary %>%
-      mutate(LB = ifelse(metric == "Ratio" & scale == "log(f2^2/f1^2)", ratio - qnorm((1+level)/2)*se, LB),
-             UB = ifelse(metric == "Ratio" & scale == "log(f2^2/f1^2)", ratio + qnorm((1+level)/2)*se, UB))
+      mutate(LB = ifelse(metric == "Ratio" & scale == "log(f2^2/f1^2)", est - qnorm((1+level)/2)*se, LB),
+             UB = ifelse(metric == "Ratio" & scale == "log(f2^2/f1^2)", est + qnorm((1+level)/2)*se, UB))
 
     # Adding correlation-scale data
     yhat2_cor = data.frame(

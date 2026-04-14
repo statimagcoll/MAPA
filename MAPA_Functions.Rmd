@@ -70,75 +70,75 @@ mapaFolds <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
   if(length(y_hat) != length(y) | length(y_hat) != length(folds) | length(y) != length(folds)){
     stop("y, y_hat, and folds must be of the same length.")
   }
-  
+
   # Creating storage vector for results and variables
   os_folds = c()
   inf_folds = c()
   n = length(y)
-  
+
   # Looping through folds
   for(fold in sort(unique(folds))){
     # Calculating and storing OS estimator
     os_res = cor_os(y_hat[which(folds == fold)], y[which(folds == fold)])
     os_folds = c(os_folds, os_res)
-    
+
     # Calculating and storing the influence vector
     inf_res = if_logit_sq(y_hat[which(folds == fold)], y[which(folds == fold)])
     inf_folds = c(inf_folds, inf_res)
   }
-  
+
   # Calculating the mean OS estimate across folds
   os_estimate = mean(os_folds, na.rm = T)
-  
+
   # Calculating the logit-scale estimate across folds
   os_estimate_logit = logit(os_estimate^2)
-  
+
   # Calculating the standard error of the OS estimate
   stand_error = sqrt(var(inf_folds)/n)
-  
+
   # Denoting the fold number that each OS fold estimate belongs to
   names(os_folds) <- sort(unique(folds))
-  
-  # Creating a results data frame for output 
+
+  # Creating a results data frame for output
   estimate = data.frame(metric = "yhat1", scale = "logit(r^2)", est = os_estimate_logit, se = stand_error)
-    
+
   if(!is.null(y_hat2)){
     # Checking that variable lengths match
     if(length(y_hat2) != length(y) | length(y_hat2) != length(folds) | length(y) != length(folds)){
       stop("y, y_hat2, and folds must be of the same length.")
     }
-    
+
     # Creating storage vector for results and variables
     os_folds2 = c()
     inf_folds2 = c()
     n = length(y)
-    
+
     # Looping through folds
     for(fold in sort(unique(folds))){
       # Calculating and storing OS estimator
       os_res = cor_os(y_hat2[which(folds == fold)], y[which(folds == fold)])
       os_folds2 = c(os_folds2, os_res)
-      
+
       # Calculating the influence vector and storing
       inf_res = if_logit_sq(y_hat2[which(folds == fold)], y[which(folds == fold)])
       inf_folds2 = c(inf_folds2, inf_res)
     }
-    
+
     # Calculating the mean OS estimate across folds
     os_estimate2 = mean(os_folds2, na.rm = T)
-    
+
     # Calculating the logit-scale estimate across folds
     os_estimate2_logit = logit(os_estimate2^2)
-    
+
     # Calculating standard error
     stand_error2 = sqrt(var(inf_folds2)/n)
-    
+
     # Denoting the fold number that each OS fold estimate belongs to
     names(os_folds2) <- sort(unique(folds))
-    
-    # Creating data frame output 
+
+    # Creating data frame output
     estimate2 = data.frame(metric = "yhat2", scale = "logit(r^2)", est = os_estimate2_logit, se = stand_error2)
-    
+
     # Calculating OS difference - first yhat vs. second yhat
     diff = cor_os_diff(os_estimate, os_estimate2, inf_folds, inf_folds2)
     os_diff = data.frame(metric = "Difference", scale = "r2-r1", est = diff["estimate"], se = diff["se"])
@@ -146,19 +146,19 @@ mapaFolds <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
     # Calculating the OS ratio - first yhat vs. second yhat
     ratio = cor_os_ratio(os_estimate, os_estimate2, inf_folds, inf_folds2)
     os_ratio = data.frame(metric = "Ratio", scale = "log(f2^2/f1^2)", est = ratio["estimate"], se = ratio["se"])
-    
+
     # Combining all data into one
     est_total = rbind(estimate, estimate2, os_diff, os_ratio)
-    
-    
+
+
     # Combining all outputs into one list
     out = list(est = est_total, fold.est = os_folds, fold.est2 = os_folds2, n = n, conf.level = level) # data frame version
   }
   else{
     # Combining all outputs into one list when there is no yhat2
-    out = list(est = estimate, fold.est = os_folds, n = n, conf.level = level) 
+    out = list(est = estimate, fold.est = os_folds, n = n, conf.level = level)
   }
-  
+
   # Returning the data frame
   return(out)
 }
@@ -179,6 +179,7 @@ mapaFolds <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
 #' @export
 
 mapa <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
+  browser()
   # Turning y into a matrix
   y = as.matrix(y)
   
@@ -253,10 +254,11 @@ mapa <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
   
   # Adding a summary data frame element in case there is more than one sample split
   out$est_summary = out$est %>%
-    group_by(metric) %>%
+    group_by(metric, scale) %>%
     summarise(
       est = median(est, na.rm = TRUE),
-      se = median(se, na.rm = TRUE)
+      se = median(se, na.rm = TRUE), 
+      .groups = "drop"
     )
   
   # Adding a place in the summary frame to add bounds
@@ -265,8 +267,8 @@ mapa <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
   
   # Calculating for logit estimate
   out$est_summary = out$est_summary %>%
-    mutate(LB = ifelse(out$est_summary$metric == "yhat1" & out$est_summary$scale == "logit(r^2)", est - qnorm((1+level)/2)*se, LB),
-           UB = ifelse(out$est_summary$metric == "yhat1" & out$est_summary$scale == "logit(r^2)", est + qnorm((1+level)/2)*se, UB))
+    mutate(LB = ifelse(metric == "yhat1" & scale == "logit(r^2)", est - qnorm((1+level)/2)*se, LB),
+           UB = ifelse(metric == "yhat1" & scale == "logit(r^2)", est + qnorm((1+level)/2)*se, UB))
   
   # Adding correlation-scale data
   yhat1_cor = data.frame(
@@ -294,13 +296,13 @@ mapa <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
     
     ## Calculating for difference 
     out$est_summary = out$est_summary %>%
-      mutate(LB = ifelse(metric == "Difference" & scale == "r2-r1", diff - qnorm((1+level)/2)*se, LB),
-             UB = ifelse(metric == "Difference" & scale == "r2-r1", diff + qnorm((1+level)/2)*se, UB))
+      mutate(LB = ifelse(metric == "Difference" & scale == "r2-r1", est - qnorm((1+level)/2)*se, LB),
+             UB = ifelse(metric == "Difference" & scale == "r2-r1", est + qnorm((1+level)/2)*se, UB))
     
     ## Calculating for ratio
     out$est_summary = out$est_summary %>%
-      mutate(LB = ifelse(metric == "Ratio" & scale == "log(f2^2/f1^2)", ratio - qnorm((1+level)/2)*se, LB),
-             UB = ifelse(metric == "Ratio" & scale == "log(f2^2/f1^2)", ratio + qnorm((1+level)/2)*se, UB))
+      mutate(LB = ifelse(metric == "Ratio" & scale == "log(f2^2/f1^2)", est - qnorm((1+level)/2)*se, LB),
+             UB = ifelse(metric == "Ratio" & scale == "log(f2^2/f1^2)", est + qnorm((1+level)/2)*se, UB))
     
     # Adding correlation-scale data
     yhat2_cor = data.frame(
