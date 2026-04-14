@@ -110,6 +110,9 @@ mapaFolds <- function(y, y_hat, folds, y_hat2 = NULL, level = 0.95){
     out = list(est = estimate, fold.est = os_folds, n = n, conf.level = level)
   }
 
+  # Getting rid of any row names
+  rownames(out$est) <- NULL
+
   # Returning the data frame
   return(out)
 }
