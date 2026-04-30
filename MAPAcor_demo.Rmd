@@ -13,10 +13,19 @@ output:
 ---
 
 # Introduction
-The aim of this tutorial is to show users how to download the *MAPA* package and how to appropriately use the functions available in the package. While this specific tutorial uses the *Reproducible Brain Charts (RBC)* dataset (https://reprobrainchart.github.io/) to train and evaluate random forest and ridge regression models, *MAPA* can be used across a variety of black-box models that predict continuous outcomes. 
+
+This tutorial illustrates how to download and use the *MAPA* package through analyses of the *Reproducible Brain Charts (RBC)* dataset (https://reprobrainchart.github.io/) to train and evaluate random forest and ridge regression models.
+MAPA stands for maximum achievable predictive accuracy and represents the best predictive accuracy that can be achieved by for a given model class, outcome, and input features.
+Pearson's correlation has slower than root-n convergence when estimating trying to estimate prediction accuracy for machine learning prediction models.
+This causes bias and failing confidence intervals.
+The MAPA estimator is based on semiparametric theory and we showed in our preprint that the the estimator is less biased than the classical estimate of Pearson's correlation ([Jones et al., 2025](https://www.biorxiv.org/content/10.1101/2025.11.26.690778v1)).
+*MAPA* can be used across a variety of black-box models that predict continuous outcomes if the convergence criteria are appropriately satisfied.
+We ensure the convergence criteria by hyperparameter tuning with nested cross-validation.
+Similar analyses and details of the methods are available in our preprint ([Jones et al., 2025](https://www.biorxiv.org/content/10.1101/2025.11.26.690778v1)).
+
 
 # Loading Packages/Libraries
-```{r, warning = FALSE, message = FALSE}
+```{r, message = FALSE}
 library(tidyverse)
 library(knitr) 
 library(glmnet)
@@ -38,18 +47,19 @@ set.seed(123)
 
 
 # Installing Data 
-Here, we utilize data from the *Reproducible Brain Charts (RBC)* data set, accessible via the *datalad* package in R (https://reprobrainchart.github.io/docs/get_data). More specifically, this tutorial will use data from the *PNC1* study site within the RBC data set, a subset of data taken from the *RBC* data set. 
+
+We analyze the Philadelphia Neurodevelopmental Cohort (PNC) from the *Reproducible Brain Charts (RBC)* dataset, accessible via the *datalad* package in R (https://reprobrainchart.github.io/docs/get_data).
 
 In *pnc_data*, the pertinent data that we use are: 
 
-- Age: a continuous measure in years that represents how old a subject’s brain is. We predict this measure in both model examples. 
-- 17Networks: columns that contain '17Networks' represent structural brain measures, or variables that give a measure of the volume of specific regions within the brain. 
-- _to_: columns that contain '_to_' represent functional brain measures, or variables that give a measure of brain activity within specicif regions of the brain.  
-- sex_bin: represents the sex of the subject, where 1 represents a male and 0 represents a female. 
-- euler: represents the Euler number, which is used to assess the quality of structural MRI scans. 
-- meanFD: represents the mean frame displacment rate, which is used to assess the quality of function MRI scans. 
+- `age`: a continuous measure in years that represents how old a subject’s brain is. We predict this measure in both model examples. 
+- `17Networks`: columns that contain the string '17Networks' are brain volumes within the Yeo 17 Network brain parcellation.
+- _to_: columns that contain '_to_' represent functional brain measures, or variables that give a measure of brain activity within specific regions of the brain.  
+- `sex_bin`: the sex of the subject, where 1 codes for male. 
+- `euler`: the Euler number, which is used to assess the quality of structural MRI scans. 
+- `meanFD`: the average mean frame displacement across the resting state fMRI timeseries. 
 
-Please note that data is unharmonized and depending on the method of download/processing, column names may vary within the RBC data. 
+The imaging data are not site corrected (unharmonized) because all data for the PNC was collected at a single site.
 ```{r}
 # Loading in the structural data - denoted by column names with '17Networks'
 rbc <- read_csv("/media/disk2/RBC_version0.1/regional_GMV_all_sites_unharmonized.csv")
@@ -77,11 +87,20 @@ pnc_data <- pnc_data %>%
 ```
 
 # Ridge Regression Model Examples
-This section seeks to highlight how the *MAPA* package can be used to evaluate ridge regression models in two instances where 1) a model is only trained on cross-fold validation or 2) a model is trained with cross-fold validation and sample splits. 
 
-## Ridge Regression Example with only Cross-Fold Validation
-### Training the Model
-Here, we test how the inclusion of either structural or functional MRI data in a ridge regression model impacts model accuracy when predicting age. 
+This section shows how the *MAPA* package can be used to evaluate ridge regression models with single five-fold cross-fitting and with 20 repeated iterations ("sample splits") of five-fold cross-fitting.
+The second approach takes longer, but ensures the results are not dependent on a single permutation of the fold grouping.
+
+## Ridge Regression with Single Cross-Fitting
+
+### Getting Predicted Values
+
+Here, we investigate how the inclusion of either structural or functional MRI data in a ridge regression model impacts model accuracy when predicting age.
+Five-fold cross-fitting is used to obtain training predictions for the left-out fold.
+The tuning parameter for ridge regression model is trained within the four folds nested 10-fold cross-validation and the minimum lambda value is selected for prediction.
+The model out-of-sample predictions are stored as a separate column in the original data frame.
+We train two models, one using the structural data and one using the functional connectivity data.
+
 ```{r}
 # Cleaning data - drop NA before cross-fold validation
 data_clean = pnc_data %>% drop_na(age) 
@@ -164,7 +183,22 @@ for(i in 1:folds){
 }
 ```
 
-### Applying mapa to Data Predictions
+
+
+
+
+### Applying `mapa` to Data Predictions
+
+
+The `mapa` function is used to obtain the Pearson correlation MAPA.
+The function takes in the true outcome values, the predictions from the first model (here, the structural predicted values for age), the fold IDs, and (optionally) the predictions from the second model (here, the functional predicted values).
+
+When two sets of predicted values are given, the `mapa` function computes confidence intervals for both estimators as well as a confidence interval for the difference.
+The confidence interval is constructed on the logit squared scale and back-transformed to Pearson's correlation interval for predicted values, [0,1].
+
+<!-- SNV: Ishaan, describe the output structure and interpretation -->
+The output returns XX.
+
 ```{r}
 # Gathering the estimates with one sample split
 results = mapa(as.matrix(data_clean$age), as.matrix(data_clean$preds_struct), as.matrix(data_clean$fold), as.matrix(data_clean$preds_func))
@@ -180,6 +214,10 @@ head(results$est)
 ```
 
 ### Graphing Outputs
+
+The results from the `mapa` function can be used to plot estimates and 95% confidence intervals for the models and their difference.
+Here, we see that the ridge regression model trained with structural MRI data has better age prediction than the model trained with functional MRI data when predicting the continuous variable age.
+
 ```{r}
 # Subsetting results to only estimates
 toPlot = results$est_summary %>% filter((metric == "Structural Data" | metric == "Functional Data") & scale == "r")
@@ -211,12 +249,15 @@ ggplot(toPlot_Diff, aes(x = metric, y = est)) +
 ```
 
 
-### Analysis 
-Here, we see that the ridge regression model trained with structural MRI data performs significantly better than the model trained with functional MRI data when predicting the continuous variable age. 
 
-## Ridge Regression Example with Sample Splits
-### Training the Model
-Here, like section 4.1, we test how the inclusion of either structural or functional MRI data in a ridge regression model impacts model accuracy when predicting age. However, this time we incorporate sample splits.
+## Ridge Regression using Sample Splits
+
+### Getting Predicted Values
+
+Here, like section 4.1, we test how the inclusion of either structural or functional MRI data in a ridge regression model impacts model accuracy when predicting age. However, this time we use 20 repeated sample splits to ensure stability across random configurations of the five-fold cross-fitting.
+The procedure is similar, except now 20 sets of out-of-sample predictions are generated one for each configuration of the five-fold cross-fitting.
+
+The resulting value is the estimate and confidence interval obtained from the median estimate and standard error across all the sample splits.
 ```{r}
 # Cleaning data
 data_clean = pnc_data %>% drop_na(age)
@@ -315,7 +356,16 @@ for(j in 1:ss_num){
 }
 ```
 
-### Applying mapa to Data Predictions
+
+
+
+### Applying `mapa` to Data Predictions
+
+
+After fitting the results from the 20 sample splits, we have 20 sets of predictions for each model and fold assignment.
+The `mapa` function takes matrix valued arguments for the structural predictions, fold ID, and functional predictions to compute the MAPA estimates and confidence intervals across the sample splits.
+Each column of the prediction matrices corresponds to one configuration of five-fold cross-fitting.
+
 ```{r}
 # Gathering the estimates with four sample splits
 results = mapa(data_clean$age, data_clean$struct_ss, data_clean$fold_ss, data_clean$func_ss)
@@ -331,7 +381,9 @@ head(results$est)
 ```
 
 ### Graphing Outputs
-Here, we take the median of the estimate and bound values from each sample split to determine what one-step estimator, lower-bound, and upper-bound value to plot.
+
+The results here align with the previous section; the model trained on structural data performs better than the model trained on functional data when predicting participant age.
+
 ```{r}
 # Filtering to only the estimates for the structural and functional estimates
 toPlot <- results$est_summary %>% filter((metric == "Structural Data" | metric == "Functional Data") & scale == "r")
@@ -363,14 +415,16 @@ ggplot(toPlot_Diff, aes(x = metric, y = est)) +
   labs(x = "One-Step Difference", y = "Difference Magnitude")
 ```
 
-### Analysis 
-Here, even with the inclusion of sample splits to test other scenarios where fold assignment randomly differs, we still see that the model trained on structural data performs significantly better than the model trained on functional data when predicting subject age. 
+ 
 
 # Random Forest Model Examples
-This section seeks to highlight how the *MAPA* package can be used to evaluate random forest models in two instances where 1) a model is only trained on cross-fold validation or 2) a model is trained with cross-fold validation and sample splits. 
+
+This section parallels the previous analyses using random forest instead of ridge regression. 
 
 ## Methods
-Here, outside of the random forest model package itself, we create the *helper_ranger* function to help tune and check the validity of our model tuning. 
+
+Here, outside of the random forest model package itself, we create the *helper_ranger* function to help tune and check the validity of our model tuning.
+
 ```{r}
 # tuning function
 helper_ranger = function(trainDat, outcome, testDat, task){
@@ -411,9 +465,11 @@ helper_ranger = function(trainDat, outcome, testDat, task){
 }
 ```
 
-## Random Forest Example with only Cross-Fold Validation
-### Training the Model
-Here, we test how the inclusion of either structural or functional data in a random forest model impacts model accuracy when predicting age. 
+## Random Forest with Single Cross-Fitting
+
+### Getting Predicted Values
+Here, we test how the inclusion of either structural or functional data in a random forest model impacts model accuracy when predicting age. Five-fold cross-fitting is used to obtain training predictions for the left-out fold.
+
 ```{r}
 # Cleaning data - drop NA before CV
 data_clean = pnc_data %>% drop_na(age) 
@@ -485,7 +541,10 @@ for(i in 1:folds){
 }
 ```
 
-### Applying mapa to Data Predictions
+### Applying `mapa` to Data Predictions
+
+The approach is the same regardless of the model used, assuming it has been tuned appropriately to satisfy the convergence criteria for the MAPA estimator.
+
 ```{r}
 # Gathering the estimates with one sample split
 results = mapa(as.matrix(data_clean$age), as.matrix(data_clean$preds_struct), as.matrix(data_clean$fold), as.matrix(data_clean$preds_func))
@@ -501,6 +560,9 @@ head(results$est)
 ```
 
 ### Graphing Outputs
+
+As with the ridge regression model, we see that the model trained on structural data performs significantly better than the model trained on functional data when predicting subject age. 
+
 ```{r}
 # Subsetting results to only estimates
 toPlot = results$est_summary %>% filter((metric == "Structural Data" | metric == "Functional Data") & scale == "r")
@@ -532,11 +594,10 @@ ggplot(toPlot_Diff, aes(x = metric, y = est)) +
   labs(x = "One-Step Difference", y = "Difference Magnitude")
 ```
 
-### Analysis 
-Here, we see that the model trained on structural data performs significantly better than the model trained on functional data when predicting subject age. 
 
-## Random Forest Example with Sample Splits
-### Training the Model
+## Random Forest using Sample Splits
+
+### Getting Predicted Values
 ```{r}
 # Cleaning data
 data_clean = pnc_data %>% drop_na(age)
@@ -626,7 +687,7 @@ for(j in 1:ss_num){
 }
 ```
 
-### Applying mapa to Data Predictions
+### Applying `mapa` to Data Predictions
 ```{r}
 # Gathering the estimates with four sample splits
 results = mapa(data_clean$age, data_clean$struct_ss, data_clean$fold_ss, data_clean$func_ss)
@@ -642,6 +703,11 @@ head(results$est)
 ```
 
 ### Graphing Outputs
+
+
+Here, with the inclusion of sample splits to test other scenarios where fold assignment randomly differs, we see that the model trained on structural data does not perform better than the model trained on functional data when predicting subject age (the confidence interval for the difference includes zero). Further, the plausible range of difference in correlation is between 0.07 and 0.14 between the structural and functional models. 
+
+
 ```{r}
 # Filtering to only the estimates for the eTIV and nWBV estimates
 toPlot <- results$est_summary %>% filter((metric == "Structural Data" | metric == "Functional Data") & scale == "r")
@@ -673,9 +739,6 @@ ggplot(toPlot_Diff, aes(x = metric, y = est)) +
   ylim(-1,1) + 
   labs(x = "One-Step Difference", y = "Difference Magnitude")
 ```
-
-### Analysis
-Here, with the inclusion of sample splits to test other scenarios where fold assignment randomly differs, we see that the model trained on structural data does not perform significantly better than the model trained on functional data when predicting subject age. Further, the plausible range of difference in correlation is between 0.07 and 0.14 between the structural and functional MRI-trained models. 
 
 
 
