@@ -16,13 +16,12 @@ output:
 
 This tutorial illustrates how to download and use the *MAPA* package through analyses of the *Reproducible Brain Charts (RBC)* dataset (https://reprobrainchart.github.io/) to train and evaluate random forest and ridge regression models.
 MAPA stands for maximum achievable predictive accuracy and represents the best predictive accuracy that can be achieved by for a given model class, outcome, and input features.
-Pearson's correlation has slower than root-n convergence when estimating trying to estimate prediction accuracy for machine learning prediction models.
+Pearson's correlation has slower than root-n convergence when estimating achievable prediction accuracy for machine learning prediction models.
 This causes bias and failing confidence intervals.
 The MAPA estimator is based on semiparametric theory and we showed in our preprint that the the estimator is less biased than the classical estimate of Pearson's correlation ([Jones et al., 2025](https://www.biorxiv.org/content/10.1101/2025.11.26.690778v1)).
 *MAPA* can be used across a variety of black-box models that predict continuous outcomes if the convergence criteria are appropriately satisfied.
 We ensure the convergence criteria by hyperparameter tuning with nested cross-validation.
 Similar analyses and details of the methods are available in our preprint ([Jones et al., 2025](https://www.biorxiv.org/content/10.1101/2025.11.26.690778v1)).
-
 
 # Loading Packages/Libraries
 ```{r, message = FALSE}
@@ -54,12 +53,13 @@ In *pnc_data*, the pertinent data that we use are:
 
 - `age`: a continuous measure in years that represents how old a subject’s brain is. We predict this measure in both model examples. 
 - `17Networks`: columns that contain the string '17Networks' are brain volumes within the Yeo 17 Network brain parcellation.
-- _to_: columns that contain '_to_' represent functional brain measures, or variables that give a measure of brain activity within specific regions of the brain.  
+- _to_: columns that contain '_to_' represent functional connectivity measures, or variables that give a measure of correlation of brain activity between specific regions of the brain.  
 - `sex_bin`: the sex of the subject, where 1 codes for male. 
 - `euler`: the Euler number, which is used to assess the quality of structural MRI scans. 
 - `meanFD`: the average mean frame displacement across the resting state fMRI timeseries. 
 
 The imaging data are not site corrected (unharmonized) because all data for the PNC was collected at a single site.
+ 
 ```{r}
 # Loading in the structural data - denoted by column names with '17Networks'
 rbc <- read_csv("/media/disk2/RBC_version0.1/regional_GMV_all_sites_unharmonized.csv")
@@ -78,7 +78,7 @@ sum(rbc$participant_id == func$participant_id) == nrow(func)
 cols_to_add <- setdiff(names(func), names(rbc))
 total_data <- cbind(rbc, func[cols_to_add])
 
-# Subsetting study site to HBNsiteSI
+# Subsetting study site to PNC
 pnc_data = total_data %>% filter(study_site == "PNC1")
 
 # Turning the sex column into a binary stored in 'sex_bin'
