@@ -12,6 +12,12 @@ output:
     highlight: haddock
 ---
 
+<!-- MJ: General feedback: 
+Add text context about the results and the format of the results. 
+Would show the sample split level first before the summary.
+Check analysis conclusions - looks like random forest also performs better with struct?
+Make sure the interpretation of ratio is clear - it’s on the log scale of the effect size (f^2) -->
+
 # Introduction
 
 This tutorial illustrates how to download and use the *MAPA* package through analyses of the *Reproducible Brain Charts (RBC)* dataset (https://reprobrainchart.github.io/) to train and evaluate random forest and ridge regression models.
